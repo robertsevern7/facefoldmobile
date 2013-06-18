@@ -1,0 +1,13 @@
+<project name="FaceFold" default="copy" basedir=".">
+    <description>
+        Copy code to tomcat
+    </description>
+    <property environment="env"/>
+    <property name="tomcat" value="${env.CATALINA_HOME}"/>
+
+    <target name="copy">
+        <copy todir="${tomcat}\webapps\FaceFold">
+            <fileset dir="./WebContent"/>
+        </copy>
+    </target>
+</project>
