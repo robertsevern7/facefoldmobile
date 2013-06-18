@@ -17,3 +17,11 @@
     width: 50px;
     margin: 7px;
 }
+
+.canvas {
+    position: relative;
+}
+
+.canvasholder {
+    margin: 10px auto;
+}

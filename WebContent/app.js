@@ -26,7 +26,7 @@ Ext.application({
         'Ext.MessageBox'
     ],
 
-    controllers: ['MainMenu'],
+    controllers: ['MainMenu', 'Fold'],
     stores: ['MainMenuOptions'],
     models: ['MainMenuOption'],
     views: ['Main', 'MainMenu', 'Fold'],
