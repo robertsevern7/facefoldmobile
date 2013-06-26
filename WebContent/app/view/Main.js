@@ -5,7 +5,6 @@ Ext.define('FaceFold.view.Main', {
         'Ext.TitleBar', 'FaceFold.view.MainMenu'
     ],
     config: {
-        scrollable: true,
         items: [{
             title: 'FaceFold',
             xtype: 'mainmenu'
