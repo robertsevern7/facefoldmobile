@@ -40,7 +40,6 @@ Ext.define('FaceFold.controller.Fold', {
         this.image.src = 'resources/icons/kemp.jpg';
 
         this.scrunches = [];
-        this.startBuffer = 0;
         this.drags = [];
         this.endBuffer = 0;
 
@@ -67,11 +66,11 @@ Ext.define('FaceFold.controller.Fold', {
         if (widthScaledWidth <= fullWidth && widthScaledHeight <= fullHeight) {
             this.canvas.width = widthScaledWidth;
             this.canvas.height = widthScaledHeight;
-            this.scale = widthScale;
+            this.setScale(widthScale);
         } else {
             this.canvas.width = heightScaledWidth;
             this.canvas.height = heightScaledHeight;
-            this.scale = heightScale;
+            this.setScale(heightScale);
         }
 
         //scale down a bit
@@ -82,6 +81,10 @@ Ext.define('FaceFold.controller.Fold', {
         holder.setHeight(this.canvas.height);
     },
 
+    setScale: function (scale) {
+        this.scale = scale;
+    },
+
     addMouseEventListeners: function() {
         this.canvas.addEventListener('mousedown',  Ext.bind(this.mouseDownHandler, this), false);
         this.canvas.addEventListener('mousemove',  Ext.bind(this.mouseMoveHandler, this), false);
@@ -89,17 +92,21 @@ Ext.define('FaceFold.controller.Fold', {
     },
 
     insideRenderedRegion: function(clickLocation, scrunches, maxSize) {
+        var after = this.getYOffset(this.scrunches) * this.scale;
 		var scrunchesSize = maxSize;
 		for (var i = 0, size = scrunches.length; i < size; ++i) {
-			scrunchesSize -= scrunches[i].grabSize;
+		    if (scrunches[i].dir === this.DIR.UP) {
+		        scrunchesSize -= (scrunches[i].end - scrunches[i].start);
+		    }
 		}
-		return (clickLocation > scrunchesSize);
+
+		return (clickLocation > after && clickLocation < scrunchesSize * this.scale);
 	},
 
 	mouseDownHandler: function(ev) {
 		var position = this.getMousePosition(ev);
-
-		if (this.insideRenderedRegion(position.y, this.scrunches, this.image.height)) {
+                            console.log(position.y)
+		if (!this.insideRenderedRegion(position.y, this.scrunches, this.image.height)) {
 			return true;
 		}
 		this.xStart = position.x;
@@ -114,40 +121,116 @@ Ext.define('FaceFold.controller.Fold', {
 		this.started = false;
 		var position = this.getMousePosition(ev);
 		this.renderNewFold(position.x, position.y);
-		delete this._currentScrunch;
-		delete this._precedingScrunch;
-		delete this._followingScrunch;
-		delete this._currentPrecedingScrunch;
+		this.clearMouseDragItems();
 	},
 
+	clearMouseDragItems: function() {
+	    delete this._currentScrunch;
+        delete this._precedingScrunch;
+        delete this._followingScrunch;
+        delete this._currentPrecedingScrunch;
+	},
+
+    DIR: {
+        UP: 'UP',
+        DOWN: 'DOWN'
+    },
+
 	renderNewFold: function(x, y) {
-	    this.startBuffer = Math.max(y - this.yStart);
-
-		var startPoint = Math.min(this.yStart, y) + (this._currentPrecedingScrunch || 0);
-		var grabSize = Math.abs(this.yStart - y);
-
-		if (!this._currentScrunch) {
-			this._currentScrunch = this.addScrunch(startPoint, grabSize);
-			var index = this.scrunches.indexOf(this._currentScrunch);
-			this._precedingScrunch = (index > 0) ? this.scrunches[index - 1] : undefined;
-			this._followingScrunch = (index + 1 < this._currentScrunch.length) ? this.scrunches[index + 1] : undefined;
-			this._currentPrecedingScrunch = this.getPrecedingTotalScrunch(this.scrunches, index);
-		} else {
-			min = this._precedingScrunch && (this._precedingScrunch.startPoint + this._precedingScrunch.grabSize + 5) || 0;
-			max = this._followingScrunch && (this._followingScrunch.startPoint + this._followingScrunch.grabSize - 5) || this.image.height;
-
-			this._currentScrunch.startPoint = Math.max(startPoint, min);
-			this._currentScrunch.grabSize = grabSize;
-		}
+        this._computeCurrentScrunch(x, y);
 		this.applyScrunches(this.scrunches);
 	},
 
-	addScrunch: function(startPoint, size) {
+	_computeCurrentScrunch: function(x, y) {
+        var dir = (y - this.yStart) > 0 ? this.DIR.DOWN : this.DIR.UP;
+        var top = Math.min(y, this.yStart);
+        var bottom = Math.max(y, this.yStart);
+
+        var currId = this._currentScrunch && this._currentScrunch.id;
+        var existingOffset = this.getYOffset(this.scrunches, currId);
+
+        var start = top/this.scale - existingOffset;
+        var end = bottom/this.scale - existingOffset;
+
+        if (!this._currentScrunch) {
+            this.previousScrunchData = this.findPreviousScrunchData(this.yStart);
+            var index = this.previousScrunchData.index;
+            var nextIndex = index + 1;
+            var offset = this.previousScrunchData.offset;
+            var previous = (index >= 0) && this.scrunches[this.previousScrunchData.index];
+            var next = (nextIndex < this.scrunches.length) &&  this.scrunches[nextIndex];
+
+            this.minDrag = (previous && previous.end) || 0
+            this.maxDrag = (next && next.start) || this.image.height;
+
+            var startScrunch = Math.max(start + offset, this.minDrag);
+            var endScrunch = Math.min(end + offset, this.maxDrag);
+
+            this._currentScrunch = this.addScrunch(startScrunch, endScrunch, dir);
+        } else {
+            var offset = this.previousScrunchData.offset;
+            var startScrunch = Math.max(start + offset, this.minDrag);
+            var endScrunch = Math.min(end + offset, this.maxDrag);
+
+            this._currentScrunch.start = startScrunch;
+            this._currentScrunch.end = endScrunch;
+            this._currentScrunch.dir = dir;
+        }
+
+        return this._currentScrunch;
+	},
+
+	getYOffset: function(scrunches, ignoreId) {
+	    var startPosition = 0;
+        for (var i = 0, len = scrunches.length; i < len; ++i) {
+            if (scrunches[i].dir === this.DIR.DOWN && (!ignoreId || scrunches[i].id !== ignoreId)) {
+                startPosition += (scrunches[i].end - scrunches[i].start);
+            }
+        }
+
+        return startPosition;
+	},
+
+	findPreviousScrunchData: function(y) {
+        //No need for a binary search, counts will be so low that it will but about the same to go linear
+        var len = this.scrunches.length;
+
+        if (!len) {
+            return {
+                offset: 0,
+                index: -1
+            }
+        }
+
+        var i = 0;
+        var offset = 0;
+
+        for (; i < len; i++) {
+            var scrunch = this.scrunches[i];
+            if ((scrunch.start - offset) * this.scale > y) {
+                return {
+                    offset: offset,
+                    index: i - 1
+                }
+            }
+
+            offset += scrunch.end - scrunch.start;
+        }
+
+        return {
+            offset: offset,
+            index: i - 1
+        }
+	},
+
+	addScrunch: function(start, end, dir) {
         //TODO when I properly support combining x and y scrunches then don't just return yScrunches all the time
         var scrunchArray = this.scrunches;
         var scrunch = {
-            startPoint: startPoint,
-            grabSize: size
+            start: start,
+            end: end,
+            dir: dir,
+            id: ((new Date()).getTime()).toString() + (Math.random()).toString()
         }
         scrunchArray.push(scrunch);
         this.orderScrunches(scrunchArray);
@@ -156,7 +239,7 @@ Ext.define('FaceFold.controller.Fold', {
 
     orderScrunches: function(scrunches) {
         scrunches.sort(function(scrunch1, scrunch2) {
-            return scrunch1.startPoint > scrunch2.startPoint;
+            return scrunch1.start > scrunch2.start;
         })
     },
 
@@ -197,62 +280,48 @@ Ext.define('FaceFold.controller.Fold', {
         var sections = this.getSectionRanges(scrunches, this.image.height);
 
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        var startPosition = this.getYOffset(this.scrunches) * this.scale;
+
         for (var i = 0, len = sections.length; i < len; ++i) {
             var section = sections[i];
-            var sectionSize = Math.max(0, section.size);
-            this.context.drawImage(this.image, 0, section.actualStart, this.image.width, sectionSize, 0, this.startBuffer + section.drawnStart * this.scale, this.canvas.width, sectionSize * this.scale);
+            var sectionSize = section.imageEnd - section.imageStart;
+            this.context.drawImage(this.image, 0, section.imageStart, this.image.width, sectionSize, 0, startPosition, this.canvas.width, sectionSize * this.scale);
 
             if (i !== (length - 1)) {
-                this.raggedLine(section.drawnStart);
+                this.raggedLine(startPosition);
             }
+
+            startPosition += sectionSize * this.scale;
         }
     },
 
     getSectionRanges: function(scrunches, imageSize) {
-        var clonedScrunches = this.cloneArray(scrunches);
-        var accumulatedScrunch = 0;
-        var accumulatedScrunchPrev = 0;
-
-        var finalPosition = {
-            startPoint: imageSize,
-            grabSize: 0
-        };
-
-        clonedScrunches.push(finalPosition);
-
-        var previousDrag = {
-            startPoint: 0,
-            grabSize: 0
-        };
-
         var sectionRanges = [];
 
-        for (var i = 0, len = clonedScrunches.length; i < len; ++i) {
-            var scrunchI = clonedScrunches[i];
-            var startPoint = scrunchI.startPoint;
+        if (!scrunches.length) {
+            sectionRanges.push({
+                imageStart: 0,
+                imageEnd: imageSize
+            });
+        } else {
+            for (var i = 0, len = scrunches.length; i < len; ++i) {
+                var scrunch = scrunches[i];
+                var prev = (i > 0) && scrunches[i - 1];
+                sectionRanges.push({
+                    imageStart: prev && prev.end || 0,
+                    imageEnd: scrunch.start
+                });
+            }
 
             sectionRanges.push({
-                actualStart: previousDrag.startPoint + previousDrag.grabSize,
-                drawnStart: previousDrag.startPoint - accumulatedScrunch,
-                size: startPoint - (previousDrag.startPoint + previousDrag.grabSize)
+                imageStart: scrunch.end,
+                imageEnd: imageSize
             });
-
-            accumulatedScrunch += previousDrag.grabSize;
-            previousDrag = scrunchI;
         }
 
-        return sectionRanges;
-    },
 
-    //Note this only clone the array so that adding to it doesn't change the original object - the objects themselves are still references
-    cloneArray: function(array) {
-        var cloneArray = [];
-
-        for (var i = 0, len = array.length; i < len; ++i) {
-            cloneArray.push(array[i]);
-        }
-
-        return cloneArray;
+        return sectionRanges
     },
 
     raggedLine: function(startPoint) {
