@@ -290,7 +290,7 @@ Ext.define('FaceFold.controller.Fold', {
             this.context.drawImage(this.image, 0, section.imageStart, this.image.width, sectionSize, 0, startPosition, this.canvas.width, sectionSize * this.scale);
 
             if (i !== (length - 1)) {
-                this.raggedLine(startPosition);
+                this.raggedLine(startPosition, scrunches[i-1].dir);
             }
 
             startPosition += sectionSize * this.scale;
@@ -325,11 +325,16 @@ Ext.define('FaceFold.controller.Fold', {
         return sectionRanges
     },
 
-    raggedLine: function(startPoint) {
-        var grd = this.context.createLinearGradient(0, startPoint, 0.1, startPoint + 10);
-        grd.addColorStop(0.05,"black");
-        grd.addColorStop(0.95,"transparent");
+    raggedLine: function(startPoint, dir) {
+        var gap = 5;
+        var start = (dir === this.DIR.UP) ? startPoint - gap : startPoint;
+        var end = (dir === this.DIR.UP) ? startPoint : startPoint + gap;
+
+        var grd = this.context.createLinearGradient(0, start, 0, end);
+        grd.addColorStop(0, (dir === this.DIR.UP) ? "transparent" : "black");
+        grd.addColorStop(1, (dir === this.DIR.UP) ? "black" : "transparent");
+
         this.context.fillStyle = grd;
-        this.context.fillRect(0, startPoint, this.canvas.width, this.canvas.height);
+        this.context.fillRect(0, start, this.canvas.width, gap);
     }
 });
