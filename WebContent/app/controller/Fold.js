@@ -105,7 +105,6 @@ Ext.define('FaceFold.controller.Fold', {
 
 	mouseDownHandler: function(ev) {
 		var position = this.getMousePosition(ev);
-                            console.log(position.y)
 		if (!this.insideRenderedRegion(position.y, this.scrunches, this.image.height)) {
 			return true;
 		}
@@ -202,12 +201,14 @@ Ext.define('FaceFold.controller.Fold', {
             }
         }
 
+        var emptySpaceAtStart = this.getYOffset(this.scrunches);
+
         var i = 0;
         var offset = 0;
 
         for (; i < len; i++) {
             var scrunch = this.scrunches[i];
-            if ((scrunch.start - offset) * this.scale > y) {
+            if ((scrunch.start - offset + emptySpaceAtStart) * this.scale > y) {
                 return {
                     offset: offset,
                     index: i - 1
