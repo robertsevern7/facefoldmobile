@@ -29,7 +29,7 @@ Ext.application({
     controllers: ['MainMenu', 'Fold'],
     stores: ['MainMenuOptions'],
     models: ['MainMenuOption'],
-    views: ['Main', 'MainMenu', 'Fold'],
+    views: ['Main', 'MainMenu', 'Fold', 'Foldhold'],
 
     icon: {
         '57': 'resources/icons/Icon.png',

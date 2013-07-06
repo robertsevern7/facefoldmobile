@@ -8,7 +8,7 @@ Ext.define('FaceFold.controller.Fold', {
             }
         },
         control: {
-            'fold': {
+            'foldhold': {
                 show: 'loadImage'
             }
         }
@@ -72,10 +72,6 @@ Ext.define('FaceFold.controller.Fold', {
             this.canvas.height = heightScaledHeight;
             this.setScale(heightScale);
         }
-
-        //scale down a bit
-        //this.canvas.height = this.canvas.height * 0.95
-        //this.canvas.width = this.canvas.width * 0.95
 
         holder.setWidth(this.canvas.width);
         holder.setHeight(this.canvas.height);

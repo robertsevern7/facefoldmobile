@@ -15,7 +15,7 @@ Ext.define('FaceFold.controller.MainMenu', {
 
     launchImageView: function(item, index, target, record) {
         this.getNav().add({
-            xtype: 'fold'
+            xtype: 'foldhold'
         })
     }
 });

@@ -4,9 +4,6 @@ Ext.define('FaceFold.view.Fold', {
     requires: [
     ],
     config: {
-        height: '100%',
-        width: '100%',
-        title: 'Get Folding!',
         html: '<div class="canvasholder">' +
                   '<canvas id="myCanvas" class="canvas">' +
                       'Your browser does not have support for Canvas.>' +
