@@ -6,6 +6,10 @@ Ext.define('FaceFold.controller.Fold', {
                 selector: 'fold',
                 xtype: 'fold'
             },
+            foldHold: {
+                selector: 'foldhold',
+                xtype: 'foldhold'
+            },
             backButton: '#back',
             forwardButton: '#forward'
         },
@@ -153,7 +157,7 @@ Ext.define('FaceFold.controller.Fold', {
         }, false);
 
         //TODO this needs to be loaded from the selected image
-        this.image.src = 'resources/icons/kemp.jpg';
+        this.image.src = this.getFoldHold().imageUrl;
 
         this.scrunches = [];
         this.drags = [];
