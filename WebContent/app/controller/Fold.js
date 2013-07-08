@@ -5,13 +5,126 @@ Ext.define('FaceFold.controller.Fold', {
             foldView: {
                 selector: 'fold',
                 xtype: 'fold'
-            }
+            },
+            backButton: '#back',
+            forwardButton: '#forward'
         },
         control: {
             'foldhold': {
                 show: 'loadImage'
+            },
+            '#back': {
+                tap: 'goBack'
+            },
+            '#forward': {
+                tap: 'goForward'
             }
         }
+    },
+
+    _addedOrder: [],
+    _storedScrunches: [],
+    _currentOrderPos: 0, //NOTE THIS IS 1 BASED TO ALLOW FOR EASIER IF STATEMENTS
+
+    goBack: function() {
+        if (!this._addedOrder.length || !this._currentOrderPos) {
+            return;
+        }
+
+        this._currentOrderPos--;
+        var remove = this._addedOrder[this._currentOrderPos];
+        this.getBackButton().setDisabled(!this._currentOrderPos);
+        this.getForwardButton().setDisabled(false);
+
+        for (var i = 0, len = this.scrunches.length; i < len; i++) {
+            if (this.scrunches[i].id === remove) {
+                break;
+            }
+        }
+
+        var foundIt = this.scrunches[i];
+        var copy = Ext.clone(foundIt);
+
+        var intervalHolder = {};
+        intervalHolder.fadeAwayId = setInterval(Ext.bind(this.fadeOutScrunch, this, [i, copy, intervalHolder]), 10);
+    },
+
+    fadeOutScrunch: function(i, originalScrunch, intervalHolder) {
+        var scrunch = this.scrunches[i];
+        scrunch.end -= 3;
+
+        if (scrunch.end <= scrunch.start) {
+            clearInterval(intervalHolder.fadeAwayId);
+            this.removeScrunch(i, originalScrunch);
+        } else {
+            this.applyScrunches(this.scrunches);
+        }
+    },
+
+    removeScrunch: function(i, originalScrunch) {
+        this.scrunches.splice(i, 1);
+        this._storedScrunches.push(originalScrunch);
+        this.applyScrunches(this.scrunches);
+    },
+
+    goForward: function() {
+        var atEnd = this._currentOrderPos === this._addedOrder.length;
+        if (!this._addedOrder.length || atEnd) {
+            return;
+        }
+
+        this._currentOrderPos++;
+
+        this._addInScrunchAnimated();
+
+        this.getBackButton().setDisabled(false);
+        atEnd = this._currentOrderPos === this._addedOrder.length;
+        this.getForwardButton().setDisabled(atEnd);
+    },
+
+    _addInScrunchAnimated: function() {
+        var addIn = this._addedOrder[this._currentOrderPos - 1];
+
+        for (var i = 0, len = this._storedScrunches.length; i < len; i++) {
+            if (this._storedScrunches[i].id === addIn) {
+                break;
+            }
+        }
+
+        var foundItArray = this._storedScrunches.splice(i, 1);
+        var foundIt = foundItArray.length && foundItArray[0];
+
+        if (foundIt) {
+            var copy = Ext.clone(foundIt);
+            copy.end = copy.start;
+            this.scrunches.push(copy);
+            this.orderScrunches(this.scrunches);
+            var intervalHolder = {};
+            intervalHolder.fadeAwayId = setInterval(Ext.bind(this.fadeInScrunch, this, [i, copy, foundIt, intervalHolder]), 10);
+        }
+    },
+
+    fadeInScrunch: function(i, scrunch, targetScrunch, intervalHolder) {
+        //var scrunch = this.scrunches[i];
+        scrunch.end += 3;
+
+        if (scrunch.end > targetScrunch.end) {
+            clearInterval(intervalHolder.fadeAwayId);
+            scrunch.end = targetScrunch.end;
+        }
+
+        this.applyScrunches(this.scrunches);
+    },
+
+    _addOrderingItem: function(id) {
+        if (this._addedOrder.length > this._currentOrderPos) {
+            this._addedOrder.splice(this._currentOrderPos);
+        }
+
+        this._addedOrder.push(id);
+        this._currentOrderPos = this._addedOrder.length;
+        this.getForwardButton().setDisabled(true);
+        this.getBackButton().setDisabled(false);
     },
 
     loadImage: function(item, index, target, record) {
@@ -229,6 +342,8 @@ Ext.define('FaceFold.controller.Fold', {
             dir: dir,
             id: ((new Date()).getTime()).toString() + (Math.random()).toString()
         }
+        this._addOrderingItem(scrunch.id)
+
         scrunchArray.push(scrunch);
         this.orderScrunches(scrunchArray);
         return scrunch;
