@@ -18,6 +18,9 @@ Ext.define('FaceFold.controller.Fold', {
             },
             '#forward': {
                 tap: 'goForward'
+            },
+            '#createImage': {
+                tap: 'createImage'
             }
         }
     },
@@ -447,5 +450,9 @@ Ext.define('FaceFold.controller.Fold', {
 
         this.context.fillStyle = grd;
         this.context.fillRect(0, start, this.canvas.width, gap);
+    },
+
+    createImage: function() {
+        Canvas2Image.saveAsPNG(this.canvas);
     }
 });
